@@ -8,4 +8,3 @@ export function cn(...inputs: ClassValue[]) {
 
 export const formatCurrency = (value: number) =>
   new Intl.NumberFormat(undefined, { style: 'currency', currency: 'ETB' }).format(value)
-

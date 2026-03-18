@@ -43,11 +43,7 @@ const props = withDefaults(
 </script>
 
 <template>
-  <button
-    type="button"
-    :class="cn(buttonVariants({ variant, size }), props.class)"
-    v-bind="$attrs"
-  >
+  <button type="button" :class="cn(buttonVariants({ variant, size }), props.class)" v-bind="$attrs">
     <slot />
   </button>
 </template>

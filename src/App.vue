@@ -45,7 +45,12 @@ const formulaHtml = {
   pT: renderMath('p_T = p_d + (p_I \\times \\text{installments})'),
 }
 
-interface Unit { id: string; name: string; area_in_sqm: number; price_per_sqm: number }
+interface Unit {
+  id: string
+  name: string
+  area_in_sqm: number
+  price_per_sqm: number
+}
 
 const unitsOptions = ref<Unit[]>([
   { id: '1', name: '3 Bedroom Apartment', area_in_sqm: 135, price_per_sqm: 150000 },
@@ -60,59 +65,72 @@ const milestoneMonths = ref<number>(30)
 const expectedFulfillmentPct = ref<number>(60)
 
 const tt = computed(() => {
-  if (!totalPeriodYears.value) return undefined;
-  return totalPeriodYears.value * 12;
+  if (!totalPeriodYears.value) return undefined
+  return totalPeriodYears.value * 12
 })
 const selectedUnit = computed(() => unitsOptions.value.find((unit) => unit.id === units.value))
 
 const areAllValuesSet = computed(() => {
-  return !!units.value && !!downPayment.value && !!installments.value && !!totalPeriodYears.value && !!milestoneMonths.value && !!expectedFulfillmentPct.value
+  return (
+    !!units.value &&
+    !!downPayment.value &&
+    !!installments.value &&
+    !!totalPeriodYears.value &&
+    !!milestoneMonths.value &&
+    !!expectedFulfillmentPct.value
+  )
 })
 
 const pt = computed(() => {
-  if (!selectedUnit.value) return undefined;
-  return (((selectedUnit.value).price_per_sqm * (selectedUnit.value).area_in_sqm))
+  if (!selectedUnit.value) return undefined
+  return selectedUnit.value.price_per_sqm * selectedUnit.value.area_in_sqm
 })
 
 const pd = computed(() => {
-  if (!downPayment.value) return undefined;
-  if (!pt.value) return undefined;
-  return pt.value * (Number(downPayment.value) / 100);
+  if (!downPayment.value) return undefined
+  if (!pt.value) return undefined
+  return pt.value * (Number(downPayment.value) / 100)
 })
 
 const pm = computed(() => {
-  if (!areAllValuesSet.value) return undefined;
-  return (pt.value as number - pd.value as number) / tt.value as number;
+  if (!areAllValuesSet.value) return undefined
+  return ((pt.value as number) - (pd.value as number)) / (tt.value as number)
 })
 
 const pf = computed(() => {
-  if (!expectedFulfillmentPct.value) return undefined;
-  return (expectedFulfillmentPct.value / 100) * pt.value;
+  if (!expectedFulfillmentPct.value) return undefined
+  return (expectedFulfillmentPct.value / 100) * (pt.value as number)
 })
 
 const pi = computed(() => {
-  if (!areAllValuesSet.value) return undefined;
-  return (pt.value - pd.value) / installments.value;
+  if (!areAllValuesSet.value) return undefined
+  return (
+    ((pt.value as number) - (pd.value as number)) / (Number(installments.value as string) as number)
+  )
 })
 
 const rateFromBase = computed(() => {
-  if (!areAllValuesSet.value) return undefined;
-  return ((pm.value * milestoneMonths.value) + pd.value) / pf.value;
+  if (!areAllValuesSet.value) return undefined
+  return (
+    ((pm.value as number) * milestoneMonths.value + (pd.value as number)) / (pf.value as number)
+  )
 })
 
 const pI = computed(() => {
-  if (!rateFromBase.value) return undefined;
-  return pi.value * (1 + rateFromBase.value)
+  if (!rateFromBase.value) return undefined
+  return (pi.value as number) * (1 + rateFromBase.value)
 })
 
 const pT = computed(() => {
-  if (!rateFromBase.value) return undefined;
-  return pd.value + (pI.value * installments.value);
+  if (!rateFromBase.value) return undefined
+  return (
+    (pd.value as number) + (pI.value as number) * (Number(installments.value as string) as number)
+  )
 })
 </script>
 
 <template>
-  <div class="container  py-12 px-3 gap-4 mx-auto max-w-xl flex items-center flex-col">
+  <div class="container py-12 px-3 gap-4 mx-auto max-w-xl flex items-center flex-col">
     <div class="w-full flex px-2 items-center justify-between">
       <h1 class="font-semibold text-lg">Payment Calculation</h1>
       <Sheet>
@@ -209,7 +227,9 @@ const pT = computed(() => {
     <div class="flex w-full flex-col gap-8">
       <div class="w-full flex flex-col gap-4 items-center">
         <div class="w-full flex flex-col gap-2">
-          <label for="units" class="text-sm font-medium">Units <span class="text-gray-500">(for demonstration purposes)</span> </label>
+          <label for="units" class="text-sm font-medium"
+            >Units <span class="text-gray-500">(for demonstration purposes)</span>
+          </label>
           <div class="flex flex-col gap-1">
             <NativeSelect id="units" v-model="units" :class="['w-full', !units && 'text-gray-400']">
               <NativeSelectOption value="" disabled>Choose Unit</NativeSelectOption>
@@ -218,19 +238,19 @@ const pT = computed(() => {
               </NativeSelectOption>
             </NativeSelect>
             <p v-if="units" class="text-sm px-2 flex items-center gap-4">
-            <span class="inline">
-              <span class="text-gray-400">Area:</span>
-              {{ unitsOptions.find((unit) => unit.id === units)?.area_in_sqm }} sq. m.
-            </span>
               <span class="inline">
-              <span class="text-gray-400">Price:</span>
-              {{
+                <span class="text-gray-400">Area:</span>
+                {{ unitsOptions.find((unit) => unit.id === units)?.area_in_sqm }} sq. m.
+              </span>
+              <span class="inline">
+                <span class="text-gray-400">Price:</span>
+                {{
                   formatCurrency(
                     unitsOptions.find((unit) => unit.id === units)?.price_per_sqm as number,
                   )
                 }}
-              per sq. m.
-            </span>
+                per sq. m.
+              </span>
             </p>
           </div>
         </div>
@@ -265,41 +285,51 @@ const pT = computed(() => {
               <NativeSelectOption value="36">36</NativeSelectOption>
             </NativeSelect>
             <p class="text-sm px-2 flex items-center gap-4">
-            <span class="inline text-gray-400">
-              To be paid over {{ totalPeriodYears }} years period (this can be changed in admin settings)
-            </span>
+              <span class="inline text-gray-400">
+                To be paid over {{ totalPeriodYears }} years period (this can be changed in admin
+                settings)
+              </span>
             </p>
           </div>
         </div>
       </div>
 
-      <div v-if="areAllValuesSet" class="w-full flex flex-col gap-4 rounded-md bg-gray-50 p-5 items-center">
+      <div
+        v-if="areAllValuesSet"
+        class="w-full flex flex-col gap-4 rounded-md bg-gray-50 p-5 items-center"
+      >
         <div class="flex flex-col w-full">
           <h3 class="font-semibold text-sm">Payment Breakdown</h3>
-          <p class="text-sm text-gray-500">Based on the client's choice of payment structure, and the configurations set by the admin; below is breakdown of payment calculation.</p>
+          <p class="text-sm text-gray-500">
+            Based on the client's choice of payment structure, and the configurations set by the
+            admin; below is breakdown of payment calculation.
+          </p>
         </div>
 
         <div id="payment-breakdown" class="flex flex-col px-2 w-full gap-3">
           <div class="flex flex-col w-full">
             <label class="text-sm">Installments</label>
-            <p class="font-semibold">{{ installments }} payments within {{ totalPeriodYears }} years</p>
+            <p class="font-semibold">
+              {{ installments }} payments within {{ totalPeriodYears }} years
+            </p>
           </div>
           <div class="w-full h-px border-t border-dashed border-gray-300" />
 
           <div class="flex flex-col w-full">
             <label class="text-sm">Adjusted Payment per Installment</label>
-            <p class="font-semibold">{{ formatCurrency(pI) }}</p>
+            <p class="font-semibold">{{ formatCurrency(pI as number) }}</p>
           </div>
           <div class="w-full h-px border-t border-dashed border-gray-300" />
 
           <div class="flex flex-col w-full">
             <label class="text-sm">Adjusted Total Payment (incl. Down Payment)</label>
             <p class="font-semibold">
-              {{ formatCurrency(pT) }}
+              {{ formatCurrency(pT as number) }}
             </p>
             <p class="text-xs text-green-600">
               <Info class="size-3 inline stroke-green-600 -translate-y-px" />
-              {{ Math.round(pT / pt * 100) - 100 }}% increase from base price
+              {{ Math.round(((pT as number) / (pt as number)) * 100) - 100 }}% increase from base
+              price
             </p>
           </div>
         </div>
@@ -315,7 +345,8 @@ const pT = computed(() => {
             <DialogHeader>
               <DialogTitle>Payment calculation formulas</DialogTitle>
               <DialogDescription>
-                Mathematical notation used to compute the payment breakdown from unit price, down payment, installments, and admin configuration.
+                Mathematical notation used to compute the payment breakdown from unit price, down
+                payment, installments, and admin configuration.
               </DialogDescription>
             </DialogHeader>
             <div class="space-y-6 pt-2 text-sm">
@@ -336,7 +367,9 @@ const pT = computed(() => {
                 <div class="katex-formula bg-muted/50 rounded-md p-3" v-html="formulaHtml.pi" />
               </section>
               <section>
-                <h4 class="font-medium text-foreground mb-2">Expected Fulfillment Payment (in ETB / USD)</h4>
+                <h4 class="font-medium text-foreground mb-2">
+                  Expected Fulfillment Payment (in ETB / USD)
+                </h4>
                 <div class="katex-formula bg-muted/50 rounded-md p-3" v-html="formulaHtml.pf" />
               </section>
               <section>
@@ -344,7 +377,9 @@ const pT = computed(() => {
                 <div class="katex-formula bg-muted/50 rounded-md p-3" v-html="formulaHtml.pm" />
               </section>
               <section>
-                <h4 class="font-medium text-foreground mb-2">Increase in % from Base Price to Achieve Milestone</h4>
+                <h4 class="font-medium text-foreground mb-2">
+                  Increase in % from Base Price to Achieve Milestone
+                </h4>
                 <div class="katex-formula bg-muted/50 rounded-md p-3" v-html="formulaHtml.rate" />
               </section>
               <section>
