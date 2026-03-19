@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { Calculator, Cog, Info } from 'lucide-vue-next'
 import katex from 'katex'
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
@@ -31,9 +31,13 @@ import {
 } from '@/components/ui/table'
 import { formatCurrency } from './lib/utils.ts'
 import 'katex/dist/katex.min.css'
-import { Analytics } from '@vercel/analytics/vue'
+import { inject } from '@vercel/analytics'
 
 const aggressiveTargetFulfillment = ref<boolean>(false)
+
+onMounted(() => {
+  inject()
+})
 
 function renderMath(tex: string, display = true): string {
   return katex.renderToString(tex, {
@@ -226,8 +230,6 @@ const paymentBreakdownRows = computed(() => {
 </script>
 
 <template>
-  <Analytics />
-
   <div class="container py-12 px-3 gap-4 mx-auto max-w-xl flex items-center flex-col">
     <Sheet>
       <div class="w-full flex px-2 items-center justify-between">
