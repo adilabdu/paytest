@@ -496,13 +496,13 @@ const pT = computed(() => {
           <div class="w-full h-px border-t border-dashed border-gray-600" />
 
           <div class="flex flex-col w-full">
-            <label class="text-sm text-gray-300">Adjusted Payment per Installment</label>
+            <label class="text-sm text-gray-300">Payment per Installment</label>
             <p class="font-semibold text-sm text-gray-100">{{ formatCurrency(pI as number) }}</p>
           </div>
           <div class="w-full h-px border-t border-dashed border-gray-600" />
 
           <div class="flex flex-col w-full">
-            <label class="text-sm text-gray-300">Adjusted Total Payment (incl. Down Payment)</label>
+            <label class="text-sm text-gray-300">Total Payment (incl. Down Payment)</label>
             <p class="font-semibold text-sm text-gray-100">
               {{ formatCurrency(pT as number) }}
             </p>
