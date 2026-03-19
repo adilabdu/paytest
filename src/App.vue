@@ -31,7 +31,7 @@ import {
 } from '@/components/ui/table'
 import { formatCurrency } from './lib/utils.ts'
 import 'katex/dist/katex.min.css'
-import { Analytics } from "@vercel/analytics/vue"
+import { Analytics } from '@vercel/analytics/vue'
 
 const aggressiveTargetFulfillment = ref<boolean>(false)
 
