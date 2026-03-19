@@ -21,6 +21,14 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 import { formatCurrency } from './lib/utils.ts'
 import 'katex/dist/katex.min.css'
 
@@ -35,15 +43,20 @@ function renderMath(tex: string, display = true): string {
 }
 
 const formulaHtml = {
-  ip: renderMath(
-    'i_p = \\left\\lceil \\frac{\\text{installments}}{t_t} \\times \\text{milestoneMonths} \\right\\rceil \\quad \\text{where } t_t = \\text{totalPeriodYears} \\times 12',
-  ),
-  pi: renderMath(
-    'p_i = \\frac{p_t - p_d}{\\text{installments}} \\quad \\text{where } p_d = p_t \\times \\text{downPayment}\\%',
-  ),
-  ps: renderMath(
-    'p_s = \\frac{p_f - p_d - (i_p \\times p_i)}{i_p} \\quad \\text{where } p_f = \\text{expectedFulfillment}\\% \\times p_t',
-  ),
+  ip: {
+    main: renderMath(
+      'i_p = \\left\\lceil \\frac{\\text{installments}}{t_t} \\times \\text{milestoneMonths} \\right\\rceil',
+    ),
+    where: renderMath('\\text{where } t_t = \\text{totalPeriodYears} \\times 12'),
+  },
+  pi: {
+    main: renderMath('p_i = \\frac{p_t - p_d}{\\text{installments}}'),
+    where: renderMath('\\text{where } p_d = p_t \\times \\text{downPayment}\\%'),
+  },
+  ps: {
+    main: renderMath('p_s = \\frac{p_f - p_d - (i_p \\times p_i)}{i_p}'),
+    where: renderMath('\\text{where } p_f = \\text{expectedFulfillment}\\% \\times p_t'),
+  },
   pI: renderMath('p_I = p_i + p_s'),
   pT: renderMath('p_T = p_d + (p_I \\times \\text{installments})'),
 }
@@ -66,7 +79,6 @@ interface Installment {
 const installmentOptions: Installment[] = [
   { value: '6' },
   { value: '12' },
-  { value: '15' },
   { value: '24' },
   { value: '36' },
 ]
@@ -191,80 +203,122 @@ const pT = computed(() => {
     (pd.value as number) + (pI.value as number) * (Number(installments.value as string) as number)
   )
 })
+
+/**
+ * Payment breakdown rows: one per selected installment.
+ * Each row: milestone #, installment date (months), fulfilled payment at that milestone.
+ */
+const paymentBreakdownRows = computed(() => {
+  if (!areAllValuesSet.value || !installments.value || !ti.value || !pd.value || !pI.value)
+    return []
+  const n = Number(installments.value)
+  const rows: { milestone: number; dateMonths: number; fulfilledPayment: number }[] = []
+  for (let k = 1; k <= n; k++) {
+    rows.push({
+      milestone: k,
+      dateMonths: Math.round(k * (ti.value as number)),
+      fulfilledPayment: (pd.value as number) + k * (pI.value as number),
+    })
+  }
+  return rows
+})
 </script>
 
 <template>
   <div class="container py-12 px-3 gap-4 mx-auto max-w-xl flex items-center flex-col">
-    <div class="w-full flex px-2 items-center justify-between">
-      <h1 class="font-semibold text-lg">Payment Calculation</h1>
-      <div class="flex items-center gap-2">
-        <Dialog>
-          <DialogTrigger as-child>
-            <button
-              type="button"
-              class="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-              aria-label="View formulas"
+    <Sheet>
+      <div class="w-full flex px-2 items-center justify-between">
+        <h1 class="font-semibold text-lg">Payment Calculation</h1>
+        <div class="flex items-center gap-2">
+          <Dialog>
+            <DialogTrigger as-child>
+              <button
+                type="button"
+                class="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                aria-label="View formulas"
+              >
+                <Calculator class="size-5 shrink-0" aria-hidden="true" />
+              </button>
+            </DialogTrigger>
+            <DialogContent
+              class="max-w-2xl w-[calc(100vw-2rem)] max-h-[85vh] overflow-y-auto overflow-x-auto min-w-0"
             >
-              <Calculator class="size-5 shrink-0" aria-hidden="true" />
-            </button>
-          </DialogTrigger>
-          <DialogContent class="max-w-2xl max-h-[85vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Payment calculation formulas</DialogTitle>
-              <DialogDescription>
-                Mathematical notation used to compute the payment breakdown from unit price, down
-                payment, installments, and admin configuration.
-              </DialogDescription>
-            </DialogHeader>
-            <div id="formulas" class="space-y-6 pt-2 text-sm">
-              <section>
-                <h4 class="font-medium text-foreground mb-2">
-                  Target Installments (i<sub>p</sub>)
-                </h4>
-                <p class="text-muted-foreground mb-2">
-                  Number of installments that occur within the target (milestone) period.
-                </p>
-                <div class="katex-formula bg-muted/50 rounded-md p-3" v-html="formulaHtml.ip" />
-              </section>
-              <section>
-                <h4 class="font-medium text-foreground mb-2">
-                  Unadjusted Payment per Installment (p<sub>i</sub>)
-                </h4>
-                <p class="text-muted-foreground mb-2">
-                  The base payment per installment that covers the base price over the full term.
-                </p>
-                <div class="katex-formula bg-muted/50 rounded-md p-3" v-html="formulaHtml.pi" />
-              </section>
-              <section>
-                <h4 class="font-medium text-foreground mb-2">Profit Surcharge (p<sub>s</sub>)</h4>
-                <p class="text-muted-foreground mb-2">
-                  The profit surcharge amount per installment to reach the target payment within the
-                  target period.
-                </p>
-                <div class="katex-formula bg-muted/50 rounded-md p-3" v-html="formulaHtml.ps" />
-              </section>
-              <section>
-                <h4 class="font-medium text-foreground mb-2">
-                  Adjusted Payment per Installment (p<sub>I</sub>)
-                </h4>
-                <p class="text-muted-foreground mb-2">
-                  Unadjusted payment plus the profit surcharge.
-                </p>
-                <div class="katex-formula bg-muted/50 rounded-md p-3" v-html="formulaHtml.pI" />
-              </section>
-              <section>
-                <h4 class="font-medium text-foreground mb-2">
-                  Adjusted Total Payment (p<sub>T</sub>)
-                </h4>
-                <p class="text-muted-foreground mb-2">
-                  Down payment plus the sum of all adjusted installment payments.
-                </p>
-                <div class="katex-formula bg-muted/50 rounded-md p-3" v-html="formulaHtml.pT" />
-              </section>
-            </div>
-          </DialogContent>
-        </Dialog>
-        <Sheet>
+              <DialogHeader>
+                <DialogTitle>Payment calculation formulas</DialogTitle>
+                <DialogDescription>
+                  Mathematical notation used to compute the payment breakdown from unit price, down
+                  payment, installments, and admin configuration.
+                </DialogDescription>
+              </DialogHeader>
+              <div id="formulas" class="space-y-6 pt-2 text-sm min-w-0">
+                <section class="min-w-0">
+                  <h4 class="font-medium text-foreground mb-2">
+                    Target Installments (i<sub>p</sub>)
+                  </h4>
+                  <p class="text-muted-foreground mb-2">
+                    Number of installments that occur within the target (milestone) period.
+                  </p>
+                  <div
+                    class="katex-formula bg-muted/50 overflow-x-auto rounded-md py-3 min-w-0 space-y-2"
+                  >
+                    <div class="w-full mx-3" v-html="formulaHtml.ip.main" />
+                    <div v-html="formulaHtml.ip.where" class="text-muted-foreground" />
+                  </div>
+                </section>
+                <section class="min-w-0">
+                  <h4 class="font-medium text-foreground mb-2">
+                    Unadjusted Payment per Installment (p<sub>i</sub>)
+                  </h4>
+                  <p class="text-muted-foreground mb-2">
+                    The base payment per installment that covers the base price over the full term.
+                  </p>
+                  <div
+                    class="katex-formula bg-muted/50 overflow-x-auto rounded-md py-3 min-w-0 space-y-2"
+                  >
+                    <div class="w-full mx-3" v-html="formulaHtml.pi.main" />
+                    <div v-html="formulaHtml.pi.where" class="text-muted-foreground" />
+                  </div>
+                </section>
+                <section class="min-w-0">
+                  <h4 class="font-medium text-foreground mb-2">Profit Surcharge (p<sub>s</sub>)</h4>
+                  <p class="text-muted-foreground mb-2">
+                    The profit surcharge amount per installment to reach the target payment within
+                    the target period.
+                  </p>
+                  <div
+                    class="katex-formula bg-muted/50 overflow-x-auto rounded-md py-3 min-w-0 space-y-2"
+                  >
+                    <div class="w-full mx-3" v-html="formulaHtml.ps.main" />
+                    <div v-html="formulaHtml.ps.where" class="text-muted-foreground" />
+                  </div>
+                </section>
+                <section class="min-w-0">
+                  <h4 class="font-medium text-foreground mb-2">
+                    Adjusted Payment per Installment (p<sub>I</sub>)
+                  </h4>
+                  <p class="text-muted-foreground mb-2">
+                    Unadjusted payment plus the profit surcharge.
+                  </p>
+                  <div
+                    class="katex-formula bg-muted/50 rounded-md p-3 min-w-0"
+                    v-html="formulaHtml.pI"
+                  />
+                </section>
+                <section class="min-w-0">
+                  <h4 class="font-medium text-foreground mb-2">
+                    Adjusted Total Payment (p<sub>T</sub>)
+                  </h4>
+                  <p class="text-muted-foreground mb-2">
+                    Down payment plus the sum of all adjusted installment payments.
+                  </p>
+                  <div
+                    class="katex-formula bg-muted/50 rounded-md p-3 min-w-0"
+                    v-html="formulaHtml.pT"
+                  />
+                </section>
+              </div>
+            </DialogContent>
+          </Dialog>
           <SheetTrigger as-child>
             <button
               type="button"
@@ -385,136 +439,182 @@ const pT = computed(() => {
               </label>
             </div>
           </SheetContent>
-        </Sheet>
+        </div>
       </div>
-    </div>
 
-    <div class="flex w-full flex-col gap-8">
-      <div class="w-full flex flex-col gap-4 items-center">
-        <div class="w-full flex flex-col gap-2">
-          <label for="units" class="text-sm font-medium"
-            >Units <span class="text-gray-500">(for demonstration purposes)</span>
-          </label>
-          <div class="flex flex-col gap-1">
-            <NativeSelect id="units" v-model="units" :class="['w-full', !units && 'text-gray-400']">
-              <NativeSelectOption value="" disabled>Choose Unit</NativeSelectOption>
-              <NativeSelectOption v-for="opt in unitsOptions" :key="opt.id" :value="opt.id">
-                {{ opt.name }}
-              </NativeSelectOption>
-            </NativeSelect>
-            <p v-if="units" class="text-sm px-2 flex items-center gap-4">
-              <span class="inline">
-                <span class="text-gray-400">Area:</span>
-                {{ unitsOptions.find((unit) => unit.id === units)?.area_in_sqm }} sq. m.
-              </span>
-              <span class="inline">
-                <span class="text-gray-400">Price:</span>
-                {{
-                  formatCurrency(
-                    unitsOptions.find((unit) => unit.id === units)?.price_per_sqm as number,
+      <div class="flex w-full flex-col gap-8">
+        <div class="w-full flex flex-col gap-4 items-center">
+          <div class="w-full flex flex-col gap-2">
+            <label for="units" class="text-sm font-medium"
+              >Units <span class="text-gray-500">(for demonstration purposes)</span>
+            </label>
+            <div class="flex flex-col gap-1">
+              <NativeSelect
+                id="units"
+                v-model="units"
+                :class="['w-full', !units && 'text-gray-400']"
+              >
+                <NativeSelectOption value="" disabled>Choose Unit</NativeSelectOption>
+                <NativeSelectOption v-for="opt in unitsOptions" :key="opt.id" :value="opt.id">
+                  {{ opt.name }}
+                </NativeSelectOption>
+              </NativeSelect>
+              <p v-if="units" class="text-sm px-2 flex items-center gap-4">
+                <span class="inline">
+                  <span class="text-gray-400">Area:</span>
+                  {{ unitsOptions.find((unit) => unit.id === units)?.area_in_sqm }} sq. m.
+                </span>
+                <span class="inline">
+                  <span class="text-gray-400">Price:</span>
+                  {{
+                    formatCurrency(
+                      unitsOptions.find((unit) => unit.id === units)?.price_per_sqm as number,
+                    )
+                  }}
+                  per sq. m.
+                </span>
+              </p>
+            </div>
+          </div>
+          <div class="w-full flex flex-col gap-2">
+            <label for="down-payment" class="text-sm font-medium">Down Payment</label>
+            <div class="flex flex-col gap-1">
+              <NativeSelect
+                id="down-payment"
+                v-model="downPayment"
+                :disabled="!units"
+                :class="['w-full', !downPayment && 'text-gray-400']"
+              >
+                <NativeSelectOption value="" disabled>Choose Down Payment Rate</NativeSelectOption>
+                <NativeSelectOption
+                  v-for="opt in downPaymentOptions"
+                  :key="opt.value"
+                  :value="opt.value"
+                >
+                  {{ opt.value }}%
+                </NativeSelectOption>
+              </NativeSelect>
+              <p v-if="pd" class="text-sm px-2 flex items-center gap-4">
+                <span class="inline">
+                  <span class="text-gray-400">Amount:</span>
+                  {{ formatCurrency(pd as number) }}
+                </span>
+              </p>
+            </div>
+          </div>
+          <div class="w-full flex flex-col gap-2">
+            <label for="installments" class="text-sm font-medium">Installments</label>
+            <div class="flex flex-col gap-1">
+              <NativeSelect
+                id="installments"
+                v-model="installments"
+                :disabled="!units"
+                :class="['w-full', !installments && 'text-gray-400']"
+              >
+                <NativeSelectOption value="" disabled
+                  >Choose Payment Installment</NativeSelectOption
+                >
+                <NativeSelectOption
+                  v-for="opt in installmentOptions"
+                  :key="opt.value"
+                  :value="opt.value"
+                >
+                  {{ opt.value }}
+                </NativeSelectOption>
+              </NativeSelect>
+              <p class="text-sm px-2 flex items-center gap-4">
+                <span class="inline text-gray-400">
+                  To be paid over {{ totalPeriodYears }} years period (this can be changed in
+                  <SheetTrigger as-child>
+                    <button
+                      type="button"
+                      class="underline underline-offset-3 decoration-dotted cursor-pointer text-gray-400 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded"
+                    >
+                      admin settings
+                    </button>
+                  </SheetTrigger>
                   )
-                }}
-                per sq. m.
-              </span>
-            </p>
+                </span>
+              </p>
+            </div>
           </div>
         </div>
-        <div class="w-full flex flex-col gap-2">
-          <label for="down-payment" class="text-sm font-medium">Down Payment</label>
-          <div class="flex flex-col gap-1">
-            <NativeSelect
-              id="down-payment"
-              v-model="downPayment"
-              :disabled="!units"
-              :class="['w-full', !downPayment && 'text-gray-400']"
-            >
-              <NativeSelectOption value="" disabled>Choose Down Payment Rate</NativeSelectOption>
-              <NativeSelectOption
-                v-for="opt in downPaymentOptions"
-                :key="opt.value"
-                :value="opt.value"
-              >
-                {{ opt.value }}%
-              </NativeSelectOption>
-            </NativeSelect>
-            <p v-if="pd" class="text-sm px-2 flex items-center gap-4">
-              <span class="inline">
-                <span class="text-gray-400">Amount:</span>
-                {{ formatCurrency(pd as number) }}
-              </span>
+
+        <div
+          id="payment-breakdown"
+          v-if="areAllValuesSet"
+          class="w-full flex flex-col gap-4 rounded-md bg-gray-900 p-5 items-center"
+        >
+          <div class="flex flex-col w-full">
+            <h3 class="font-semibold text-sm text-gray-100">Payment Breakdown</h3>
+            <p class="text-sm text-gray-400">
+              Based on the client's choice of payment structure, and the configurations set by the
+              admin; below is breakdown of payment calculation.
             </p>
           </div>
-        </div>
-        <div class="w-full flex flex-col gap-2">
-          <label for="installments" class="text-sm font-medium">Installments</label>
-          <div class="flex flex-col gap-1">
-            <NativeSelect
-              id="installments"
-              v-model="installments"
-              :disabled="!units"
-              :class="['w-full', !installments && 'text-gray-400']"
-            >
-              <NativeSelectOption value="" disabled>Choose Payment Installment</NativeSelectOption>
-              <NativeSelectOption
-                v-for="opt in installmentOptions"
-                :key="opt.value"
-                :value="opt.value"
-              >
-                {{ opt.value }}
-              </NativeSelectOption>
-            </NativeSelect>
-            <p class="text-sm px-2 flex items-center gap-4">
-              <span class="inline text-gray-400">
-                To be paid over {{ totalPeriodYears }} years period (this can be changed in admin
-                settings)
-              </span>
-            </p>
+
+          <div class="flex flex-col px-2 w-full gap-3">
+            <div class="flex flex-col w-full">
+              <label class="text-sm text-gray-300">Installments</label>
+              <p class="font-semibold text-sm text-gray-100">
+                {{ installments }} payments every ~{{ Number(ti).toFixed(1) }} months
+              </p>
+            </div>
+            <div class="w-full h-px border-t border-dashed border-gray-600" />
+
+            <div class="flex flex-col w-full">
+              <label class="text-sm text-gray-300">Payment per Installment</label>
+              <p class="font-semibold text-sm text-gray-100">{{ formatCurrency(pI as number) }}</p>
+            </div>
+            <div class="w-full h-px border-t border-dashed border-gray-600" />
+
+            <div class="flex flex-col w-full">
+              <label class="text-sm text-gray-300">Total Payment (incl. Down Payment)</label>
+              <p class="font-semibold text-sm text-gray-100">
+                {{ formatCurrency(pT as number) }}
+              </p>
+              <p class="text-xs text-green-400">
+                <Info class="size-3 inline stroke-green-400 -translate-y-px" />
+                {{ Math.round(((pT as number) / (pt as number)) * 100) - 100 }}% increase from base
+                price
+              </p>
+            </div>
+            <div class="w-full h-px border-t border-dashed border-gray-600" />
+
+            <div class="flex flex-col w-full">
+              <Table class="w-full border border-gray-700 rounded-md overflow-hidden">
+                <TableHeader>
+                  <TableRow class="border-gray-700 hover:bg-gray-800/50">
+                    <TableHead class="pl-0 text-left text-gray-300 font-medium"
+                      >Milestone</TableHead
+                    >
+                    <TableHead class="text-center text-gray-300 font-medium">Deadline</TableHead>
+                    <TableHead class="pr-0 text-right text-gray-300 font-medium"
+                      >Cumulative paid</TableHead
+                    >
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <TableRow
+                    v-for="row in paymentBreakdownRows"
+                    :key="row.milestone"
+                    class="border-gray-700 hover:bg-gray-800/50"
+                  >
+                    <TableCell class="pl-0 text-left text-gray-200">{{ row.milestone }}</TableCell>
+                    <TableCell class="text-center text-gray-200"
+                      >Month {{ row.dateMonths }}</TableCell
+                    >
+                    <TableCell class="pr-0 text-right text-gray-200 font-medium">
+                      {{ formatCurrency(row.fulfilledPayment) }}
+                    </TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </div>
           </div>
         </div>
       </div>
-
-      <div
-        id="payment-breakdown"
-        v-if="areAllValuesSet"
-        class="w-full flex flex-col gap-4 rounded-md bg-gray-900 p-5 items-center"
-      >
-        <div class="flex flex-col w-full">
-          <h3 class="font-semibold text-sm text-gray-100">Payment Breakdown</h3>
-          <p class="text-sm text-gray-400">
-            Based on the client's choice of payment structure, and the configurations set by the
-            admin; below is breakdown of payment calculation.
-          </p>
-        </div>
-
-        <div class="flex flex-col px-2 w-full gap-3">
-          <div class="flex flex-col w-full">
-            <label class="text-sm text-gray-300">Installments</label>
-            <p class="font-semibold text-sm text-gray-100">
-              {{ installments }} payments every ~{{ Number(ti).toFixed(1) }} months
-            </p>
-          </div>
-          <div class="w-full h-px border-t border-dashed border-gray-600" />
-
-          <div class="flex flex-col w-full">
-            <label class="text-sm text-gray-300">Payment per Installment</label>
-            <p class="font-semibold text-sm text-gray-100">{{ formatCurrency(pI as number) }}</p>
-          </div>
-          <div class="w-full h-px border-t border-dashed border-gray-600" />
-
-          <div class="flex flex-col w-full">
-            <label class="text-sm text-gray-300">Total Payment (incl. Down Payment)</label>
-            <p class="font-semibold text-sm text-gray-100">
-              {{ formatCurrency(pT as number) }}
-            </p>
-            <p class="text-xs text-green-400">
-              <Info class="size-3 inline stroke-green-400 -translate-y-px" />
-              {{ Math.round(((pT as number) / (pt as number)) * 100) - 100 }}% increase from
-              base price
-            </p>
-          </div>
-        </div>
-      </div>
-    </div>
+    </Sheet>
   </div>
 </template>
 
