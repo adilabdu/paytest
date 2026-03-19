@@ -31,6 +31,7 @@ import {
 } from '@/components/ui/table'
 import { formatCurrency } from './lib/utils.ts'
 import 'katex/dist/katex.min.css'
+import { Analytics } from "@vercel/analytics/vue"
 
 const aggressiveTargetFulfillment = ref<boolean>(false)
 
@@ -225,6 +226,8 @@ const paymentBreakdownRows = computed(() => {
 </script>
 
 <template>
+  <Analytics />
+
   <div class="container py-12 px-3 gap-4 mx-auto max-w-xl flex items-center flex-col">
     <Sheet>
       <div class="w-full flex px-2 items-center justify-between">
